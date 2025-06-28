@@ -1,6 +1,5 @@
-// api/index.js
 const { NestFactory } = require('@nestjs/core');
-const { AppModule } = require('../dist/app.module');
+const { AppModule } = require('../dist/app.module.js');
 const { ExpressAdapter } = require('@nestjs/platform-express');
 const express = require('express');
 
