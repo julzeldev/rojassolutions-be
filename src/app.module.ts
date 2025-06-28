@@ -12,12 +12,12 @@ import { SubsidiariesModule } from './modules/subsidiaries/subsidiaries.module';
     }),
     MongooseModule.forRootAsync({
       imports: [ConfigModule],
-      // useFactory: (configService: ConfigService) => ({
-      //   uri:
-      //     configService.get<string>('MONGODB_URI') ||
-      //     'mongodb+srv://juliozeledondeveloper:pxxOwTHTm5eJR2uB@cluster0.2a4glno.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0',
-      // }),
-      // inject: [ConfigService],
+      useFactory: (configService: ConfigService) => ({
+        uri:
+          configService.get<string>('MONGODB_URI') ||
+          'mongodb+srv://juliozeledondeveloper:pxxOwTHTm5eJR2uB@cluster0.2a4glno.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0',
+      }),
+      inject: [ConfigService],
     }),
     SubsidiariesModule,
   ],
