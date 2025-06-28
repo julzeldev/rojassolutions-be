@@ -51,5 +51,4 @@ export class Subsidiary extends Document {
 }
 
 export const SubsidiarySchema = SchemaFactory.createForClass(Subsidiary);
-SubsidiarySchema.index({ name: 1 }, { unique: true });
 SubsidiarySchema.index({ location: '2dsphere' });
