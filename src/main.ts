@@ -31,7 +31,6 @@ async function bootstrap() {
   const swaggerDoc = SwaggerModule.createDocument(app, docConfig);
   SwaggerModule.setup('api', app, swaggerDoc);
 
-  // 4) trust proxy (Heroku)
   app.set('trust proxy', 1);
 
   // 5) port resolution
