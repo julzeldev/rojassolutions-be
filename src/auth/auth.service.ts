@@ -39,6 +39,13 @@ export class AuthService {
     if (user.mfaEnabled) {
       return { mfaRequired: true, userId: String(user._id) };
     }
+    return this.issueTokens(user);
+  }
+
+  /**
+   * Internal utility to generate access + refresh tokens for a user (skips MFA gate).
+   */
+  private async issueTokens(user: UserDocument) {
     const cfg = getJwtConfig(this.configService);
     const payload = {
       sub: String(user._id),
@@ -49,30 +56,43 @@ export class AuthService {
       secret: cfg.secret,
       expiresIn: cfg.expiresIn,
     });
-
     // create a refresh token (random) and store hashed? for now store plain random
     const refreshToken = randomBytes(32).toString('hex');
     // persist refresh token for user
     await this.usersService.addRefreshToken(String(user._id), refreshToken);
-
     return { accessToken, refreshToken };
   }
 
   async generateMfaSetup(userId: string) {
-    const auth = authenticator as unknown as {
-      generateSecret: () => string;
-      keyuri: (user: string, issuer: string, secret: string) => string;
-      check: (token: string, secret: string) => boolean;
-    };
-    const qrLib = qrcode as unknown as {
-      toDataURL: (s: string) => Promise<string>;
-    };
-    const secret = auth.generateSecret();
-    const otpauth = auth.keyuri(userId, 'RojasSolutions', secret);
-    const qr = await qrLib.toDataURL(otpauth);
-    // store secret on user (not enabling mfa yet)
-    await this.usersService.updateMfaSecret(userId, secret);
-    return { secret, otpauth, qr };
+    try {
+      const auth = authenticator as unknown as {
+        generateSecret: () => string;
+        keyuri: (user: string, issuer: string, secret: string) => string;
+        check: (token: string, secret: string) => boolean;
+      };
+      const qrLib = qrcode as unknown as {
+        toDataURL: (s: string) => Promise<string>;
+      };
+      const secret = auth.generateSecret();
+      const otpauth = auth.keyuri(userId, 'RojasSolutions', secret);
+      const qr = await qrLib.toDataURL(otpauth);
+      await this.usersService.updateMfaSecret(userId, secret);
+      return { secret, otpauth, qr };
+    } catch (err) {
+      // Enhanced debug logging; remove once stable
+      try {
+        console.error('[generateMfaSetup] error', err);
+        if (err instanceof Error) {
+          console.error('[generateMfaSetup] stack', err.stack);
+        }
+      } catch {
+        /* ignore logging errors */
+      }
+      // surface a controlled error
+      throw new (await import('@nestjs/common')).InternalServerErrorException(
+        'MFA setup failed',
+      );
+    }
   }
 
   async verifyMfaForEnable(userId: string, token: string): Promise<boolean> {
@@ -91,15 +111,18 @@ export class AuthService {
 
   async verifyMfaAndLogin(userId: string, token: string) {
     const user = await this.usersService.findOne(userId);
-    if (!user.mfaEnabled || !user.mfaSecret)
+    if (!user.mfaEnabled || !user.mfaSecret) {
       throw new UnauthorizedException('MFA not enabled');
+    }
     const auth3 = authenticator as unknown as {
       check: (token: string, secret: string) => boolean;
     };
     const ok = auth3.check(token, String(user.mfaSecret));
-    if (!ok) throw new UnauthorizedException('Invalid MFA code');
-    // successful: return tokens
-    return this.login(user as UserDocument);
+    if (!ok) {
+      throw new UnauthorizedException('Invalid MFA code');
+    }
+    // successful: directly issue tokens (do not re-trigger mfaRequired path)
+    return this.issueTokens(user as UserDocument);
   }
 
   async refresh(refreshToken: string) {
@@ -170,5 +193,10 @@ export class AuthService {
     });
     // cleanup
     await this.passwordResetModel.deleteOne({ _id: record._id }).exec();
+  }
+
+  // Lightweight user fetch for controller /auth/me
+  async getUser(userId: string) {
+    return this.usersService.findOne(userId);
   }
 }
