@@ -4,6 +4,7 @@ import { AppModule } from './app.module';
 import { NestExpressApplication } from '@nestjs/platform-express';
 import { ConfigService } from '@nestjs/config';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
+import { ValidationPipe } from '@nestjs/common';
 
 async function bootstrap() {
   // 1) create the app
@@ -22,7 +23,16 @@ async function bootstrap() {
     credentials: true,
   });
 
-  // 3) Swagger
+  // 3) Global validation
+  app.useGlobalPipes(
+    new ValidationPipe({
+      whitelist: true,
+      forbidNonWhitelisted: true,
+      transform: true,
+    }),
+  );
+
+  // 4) Swagger
   const docConfig = new DocumentBuilder()
     .setTitle('Rojas Solutions API')
     .setDescription('API documentation for Rojas Solutions backend system')
