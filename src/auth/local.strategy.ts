@@ -7,7 +7,7 @@ import { AuthService } from './auth.service';
 export class LocalStrategy extends PassportStrategy(Strategy) {
   constructor(private authService: AuthService) {
     // passport-local expects usernameField option; cast to any to satisfy typing here
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-call
+
     super({ usernameField: 'email' } as any);
   }
 

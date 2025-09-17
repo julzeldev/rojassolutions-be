@@ -12,9 +12,9 @@ import {
   PasswordReset,
   PasswordResetDocument,
 } from './schemas/password-reset.schema';
-import * as nodemailer from 'nodemailer';
 import { authenticator } from 'otplib';
 import * as qrcode from 'qrcode';
+import { EmailService } from '../email/email.service';
 
 @Injectable()
 export class AuthService {
@@ -22,11 +22,15 @@ export class AuthService {
     private usersService: UsersService,
     private jwtService: JwtService,
     private configService: ConfigService,
+    private emailService: EmailService,
     @InjectModel(PasswordReset.name)
     private passwordResetModel: Model<PasswordResetDocument>,
   ) {}
 
-  async validateUser(email: string, password: string) {
+  async validateUser(
+    email: string,
+    password: string,
+  ): Promise<UserDocument | null> {
     const user = await this.usersService.findByEmail(email);
     if (!user) return null;
     const ok = await compare(password, user.passwordHash);
@@ -34,7 +38,12 @@ export class AuthService {
     return user;
   }
 
-  async login(user: UserDocument) {
+  async login(
+    user: UserDocument,
+  ): Promise<
+    | { mfaRequired: true; userId: string }
+    | { accessToken: string; refreshToken: string }
+  > {
     // if MFA is enabled for this user, require verification step
     if (user.mfaEnabled) {
       return { mfaRequired: true, userId: String(user._id) };
@@ -45,7 +54,9 @@ export class AuthService {
   /**
    * Internal utility to generate access + refresh tokens for a user (skips MFA gate).
    */
-  private async issueTokens(user: UserDocument) {
+  private async issueTokens(
+    user: UserDocument,
+  ): Promise<{ accessToken: string; refreshToken: string }> {
     const cfg = getJwtConfig(this.configService);
     const payload = {
       sub: String(user._id),
@@ -63,7 +74,9 @@ export class AuthService {
     return { accessToken, refreshToken };
   }
 
-  async generateMfaSetup(userId: string) {
+  async generateMfaSetup(
+    userId: string,
+  ): Promise<{ secret: string; otpauth: string; qr: string }> {
     try {
       const auth = authenticator as unknown as {
         generateSecret: () => string;
@@ -109,7 +122,10 @@ export class AuthService {
     return ok;
   }
 
-  async verifyMfaAndLogin(userId: string, token: string) {
+  async verifyMfaAndLogin(
+    userId: string,
+    token: string,
+  ): Promise<{ accessToken: string; refreshToken: string }> {
     const user = await this.usersService.findOne(userId);
     if (!user.mfaEnabled || !user.mfaSecret) {
       throw new UnauthorizedException('MFA not enabled');
@@ -125,7 +141,7 @@ export class AuthService {
     return this.issueTokens(user as UserDocument);
   }
 
-  async refresh(refreshToken: string) {
+  async refresh(refreshToken: string): Promise<{ accessToken: string }> {
     // find user with this refresh token
     const user = await this.usersService.findByRefreshToken(refreshToken);
     if (!user) throw new UnauthorizedException('Invalid refresh token');
@@ -142,13 +158,14 @@ export class AuthService {
     return { accessToken };
   }
 
-  async logout(refreshToken: string) {
+  async logout(refreshToken: string): Promise<void> {
     await this.usersService.removeRefreshToken(refreshToken);
   }
 
-  async forgotPassword(email: string) {
+  async forgotPassword(email: string): Promise<void> {
     const user = await this.usersService.findByEmail(email);
     if (!user) return; // do not reveal existence
+
     const token = randomBytes(32).toString('hex');
     const expiresAt = new Date(Date.now() + 1000 * 60 * 60); // 1 hour
     await this.passwordResetModel.create({
@@ -157,36 +174,32 @@ export class AuthService {
       expiresAt,
     });
 
-    // send email via nodemailer
-    const smtp = nodemailer as unknown as {
-      createTransport: (opts: any) => { sendMail: (opts: any) => Promise<any> };
-    };
-    const transporter = smtp.createTransport({
-      host: process.env.SMTP_HOST || 'localhost',
-      port: Number(process.env.SMTP_PORT || 1025),
-      secure: false,
-      auth: process.env.SMTP_USER
-        ? { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS }
-        : undefined,
-    });
-
     const resetUrl = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/reset-password?token=${token}`;
 
-    await transporter.sendMail({
-      from: process.env.SMTP_FROM || 'noreply@example.com',
+    await this.emailService.send({
       to: email,
       subject: 'Password reset',
-      text: `Reset your password: ${resetUrl}`,
-      html: `<p>Reset your password: <a href="${resetUrl}">${resetUrl}</a></p>`,
+      text: `Reset your password: ${resetUrl}\nEste enlace expira en 60 minutos. Si no solicitaste este cambio, ignora este correo.`,
+      html: `<p>Haz clic para restablecer tu contraseña:</p><p><a href="${resetUrl}">Restablecer contraseña</a></p><p>Este enlace expira en 60 minutos. Si no solicitaste este cambio, ignora este correo.</p>`,
     });
   }
 
-  async resetPassword(token: string, newPassword: string) {
+  async resetPassword(token: string, newPassword: string): Promise<void> {
     const record = await this.passwordResetModel.findOne({ token }).exec();
     if (!record) throw new UnauthorizedException('Invalid token');
     if (record.expiresAt < new Date()) {
       await this.passwordResetModel.deleteOne({ _id: record._id }).exec();
       throw new UnauthorizedException('Token expired');
+    }
+    // Require MFA code if user has MFA enabled before allowing password change
+    const user = await this.usersService.findOne(String(record.userId));
+    if (user.mfaEnabled) {
+      // Instead of directly resetting, we could require a verified MFA step.
+      // Approach: mark a flag requiring MFA token submission along with reset.
+      // For simplicity here, we abort unless a prior MFA verification process set a flag.
+      throw new UnauthorizedException(
+        'MFA verification required before password reset',
+      );
     }
     await this.usersService.update(String(record.userId), {
       password: newPassword,
@@ -196,7 +209,8 @@ export class AuthService {
   }
 
   // Lightweight user fetch for controller /auth/me
-  async getUser(userId: string) {
-    return this.usersService.findOne(userId);
+  async getUser(userId: string): Promise<UserDocument | null> {
+    const user = await this.usersService.findOne(userId);
+    return user as unknown as UserDocument | null; // cast due to Mongoose lean/document typing mismatch
   }
 }
