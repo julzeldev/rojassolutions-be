@@ -1,8 +1,10 @@
 import {
   BadRequestException,
   ConflictException,
+  ForbiddenException,
   Injectable,
   NotFoundException,
+  UnauthorizedException,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { FilterQuery, Model } from 'mongoose';
@@ -16,11 +18,13 @@ import { CreateEmployeeDto } from './dto/create-employee.dto';
 import { UpdateEmployeeDto } from './dto/update-employee.dto';
 import { AddSalaryDto } from './dto/add-salary.dto';
 import { oneDayBeforeUtc, parseYyyyMmDdToUtcDate } from '../utils/date';
+import { UsersService } from '../users/users.service';
 
 @Injectable()
 export class EmployeesService {
   constructor(
     @InjectModel(Employee.name) private employeeModel: Model<EmployeeDocument>,
+    private readonly usersService: UsersService,
   ) {}
 
   private parseAndValidateDates(dobStr: string, hireStr: string) {
@@ -51,6 +55,18 @@ export class EmployeesService {
   private toEmail(value: unknown): string | undefined {
     const v = this.toTrimmed(value);
     return v ? v.toLowerCase() : undefined;
+  }
+
+  private async ensureAdminHasMfa(adminId: string): Promise<void> {
+    const admin = await this.usersService.findOne(adminId);
+    if (!admin) {
+      throw new UnauthorizedException(
+        'Administrador no encontrado en la sesión',
+      );
+    }
+    if (!admin.mfaEnabled) {
+      throw new ForbiddenException('Habilita MFA para gestionar salarios');
+    }
   }
 
   async create(dto: CreateEmployeeDto): Promise<EmployeeDocument> {
@@ -206,7 +222,12 @@ export class EmployeesService {
     return { items, total };
   }
 
-  async addSalary(employeeId: string, dto: AddSalaryDto): Promise<SalaryEntry> {
+  async addSalary(
+    employeeId: string,
+    dto: AddSalaryDto,
+    adminId: string,
+  ): Promise<SalaryEntry> {
+    await this.ensureAdminHasMfa(adminId);
     if (dto.currency !== 'CRC')
       throw new BadRequestException('currency must be CRC');
 

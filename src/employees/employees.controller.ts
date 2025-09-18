@@ -7,8 +7,11 @@ import {
   Patch,
   Post,
   Query,
+  Req,
   UseGuards,
+  UnauthorizedException,
 } from '@nestjs/common';
+import { Request } from 'express';
 import { EmployeesService } from './employees.service';
 import { CreateEmployeeDto } from './dto/create-employee.dto';
 import { UpdateEmployeeDto } from './dto/update-employee.dto';
@@ -84,8 +87,16 @@ export class EmployeesController {
 
   @Post(':id/salaries')
   @Roles('admin')
-  addSalary(@Param('id') id: string, @Body() dto: AddSalaryDto) {
-    return this.service.addSalary(id, dto);
+  addSalary(
+    @Param('id') id: string,
+    @Body() dto: AddSalaryDto,
+    @Req() req: Request,
+  ) {
+    const adminId = (req.user as { sub?: string } | undefined)?.sub;
+    if (!adminId) {
+      throw new UnauthorizedException('Sesión inválida');
+    }
+    return this.service.addSalary(id, dto, adminId);
   }
 
   @Get(':id/vacations')
