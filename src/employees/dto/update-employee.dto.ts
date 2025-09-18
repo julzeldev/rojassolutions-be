@@ -1,7 +1,14 @@
 import { PartialType } from '@nestjs/swagger';
 import { CreateEmployeeDto } from './create-employee.dto';
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import { IsIn, IsOptional, IsString, Length, Matches } from 'class-validator';
+import {
+  IsEmail,
+  IsIn,
+  IsOptional,
+  IsString,
+  Length,
+  Matches,
+} from 'class-validator';
 
 export class UpdateEmployeeDto extends PartialType(CreateEmployeeDto) {
   @ApiPropertyOptional({ example: 'Juan' })
@@ -33,6 +40,17 @@ export class UpdateEmployeeDto extends PartialType(CreateEmployeeDto) {
   @IsString()
   @Matches(/^\d{9}$/)
   documentId?: string;
+
+  @ApiPropertyOptional({ example: '88889999', description: '8 digits' })
+  @IsOptional()
+  @IsString()
+  @Matches(/^\d{8}$/)
+  phone?: string;
+
+  @ApiPropertyOptional({ example: 'juan.perez@example.com' })
+  @IsOptional()
+  @IsEmail()
+  email?: string;
 
   @ApiPropertyOptional({ enum: ['active', 'inactive'] })
   @IsOptional()

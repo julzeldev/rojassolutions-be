@@ -9,6 +9,7 @@ import { FilterQuery, Model } from 'mongoose';
 import {
   Employee,
   EmployeeDocument,
+  EmployeeDocumentAttachment,
   SalaryEntry,
 } from './schemas/employee.schema';
 import { CreateEmployeeDto } from './dto/create-employee.dto';
@@ -42,21 +43,40 @@ export class EmployeesService {
     return { dob, dateOfHire };
   }
 
+  // --- Type-safe helpers ---
+  private toTrimmed(value: unknown): string | undefined {
+    return typeof value === 'string' && value.trim() ? value.trim() : undefined;
+  }
+
+  private toEmail(value: unknown): string | undefined {
+    const v = this.toTrimmed(value);
+    return v ? v.toLowerCase() : undefined;
+  }
+
   async create(dto: CreateEmployeeDto): Promise<EmployeeDocument> {
     try {
       const { dob, dateOfHire } = this.parseAndValidateDates(
         dto.dob,
         dto.dateOfHire,
       );
+
+      const validatedPhone = this.toTrimmed((dto as { phone: unknown }).phone);
+      if (!validatedPhone) {
+        throw new BadRequestException('phone must be a string');
+      }
+
       const created = await this.employeeModel.create({
         firstName: dto.firstName.trim(),
         lastName: dto.lastName.trim(),
         dob,
         dateOfHire,
         documentId: dto.documentId,
+        phone: validatedPhone,
+        email: this.toEmail((dto as { email?: unknown }).email),
         status: dto.status ?? 'active',
         salaryHistory: [],
       });
+
       return created;
     } catch (err) {
       const e = err as { code?: number; keyPattern?: Record<string, unknown> };
@@ -82,6 +102,8 @@ export class EmployeesService {
         { firstName: regex },
         { lastName: regex },
         { documentId: regex },
+        { phone: regex },
+        { email: regex },
       ];
     }
     const [items, total] = await Promise.all([
@@ -104,8 +126,10 @@ export class EmployeesService {
 
   async update(id: string, dto: UpdateEmployeeDto): Promise<EmployeeDocument> {
     const update: Partial<Employee> = {};
+
     if (dto.firstName) update.firstName = dto.firstName.trim();
     if (dto.lastName) update.lastName = dto.lastName.trim();
+
     if (dto.dob || dto.dateOfHire) {
       const emp = await this.findOne(id);
       const dobStr =
@@ -117,7 +141,24 @@ export class EmployeesService {
       update.dob = dob;
       update.dateOfHire = dateOfHire;
     }
+
     if (dto.documentId) update.documentId = dto.documentId;
+
+    {
+      const phone = (dto as { phone?: unknown }).phone;
+      if (phone !== undefined) {
+        const validatedPhone = this.toTrimmed(phone);
+        if (!validatedPhone) {
+          throw new BadRequestException('phone must be a string');
+        }
+        update.phone = validatedPhone;
+      }
+    }
+
+    if ('email' in dto) {
+      update.email = this.toEmail((dto as { email?: unknown }).email);
+    }
+
     if (dto.status) update.status = dto.status;
 
     try {
@@ -136,15 +177,11 @@ export class EmployeesService {
   }
 
   async remove(id: string, { soft = true } = {}): Promise<void> {
-    if (soft) {
-      const res = await this.employeeModel
-        .findByIdAndUpdate(id, { status: 'inactive' })
-        .exec();
-      if (!res) throw new NotFoundException('Employee not found');
-    } else {
-      const res = await this.employeeModel.findByIdAndDelete(id).exec();
-      if (!res) throw new NotFoundException('Employee not found');
-    }
+    const action = soft
+      ? this.employeeModel.findByIdAndUpdate(id, { status: 'inactive' })
+      : this.employeeModel.findByIdAndDelete(id);
+    const res = await action.exec();
+    if (!res) throw new NotFoundException('Employee not found');
   }
 
   async getCurrentSalary(employeeId: string): Promise<SalaryEntry | null> {
@@ -172,14 +209,12 @@ export class EmployeesService {
   async addSalary(employeeId: string, dto: AddSalaryDto): Promise<SalaryEntry> {
     if (dto.currency !== 'CRC')
       throw new BadRequestException('currency must be CRC');
-    // Parse effectiveFrom and validate ordering
-    const effectiveFrom = parseYyyyMmDdToUtcDate(dto.effectiveFrom);
 
+    const effectiveFrom = parseYyyyMmDdToUtcDate(dto.effectiveFrom);
     const emp = await this.findOne(employeeId);
-    // Ensure no overlap and only one open-ended
     const history = emp.salaryHistory || [];
-    // If there is a current salary, close it if effectiveFrom is in the future or today+1
     const current = history.find((h) => !h.effectiveTo);
+
     if (current) {
       if (effectiveFrom <= current.effectiveFrom) {
         throw new BadRequestException(
@@ -196,18 +231,88 @@ export class EmployeesService {
       effectiveFrom,
       effectiveTo: null,
       note: dto.note,
-    } as SalaryEntry;
+    };
 
-    // Push and save atomically
     emp.salaryHistory = [...history, entry];
     await this.employeeModel
       .updateOne(
         { _id: emp._id },
-        {
-          $set: { salaryHistory: emp.salaryHistory },
-        },
+        { $set: { salaryHistory: emp.salaryHistory } },
       )
       .exec();
+
     return entry;
+  }
+
+  async getVacationSummary(employeeId: string): Promise<{
+    accruedDays: number;
+    daysWorked: number;
+    nextAccrualDate: Date;
+    lastCalculatedAt: Date;
+  }> {
+    const emp = await this.findOne(employeeId);
+    const today = new Date();
+    const daysWorked = Math.max(
+      0,
+      Math.floor((today.getTime() - emp.dateOfHire.getTime()) / 86_400_000),
+    );
+    const accrualRatePerDay = 12 / 350;
+    const accruedDays = parseFloat((daysWorked * accrualRatePerDay).toFixed(2));
+
+    const completedBlocks = Math.floor(daysWorked / 350);
+    const nextAccrualDate = new Date(emp.dateOfHire.getTime());
+    nextAccrualDate.setDate(
+      nextAccrualDate.getDate() + (completedBlocks + 1) * 350,
+    );
+
+    return {
+      accruedDays,
+      daysWorked,
+      nextAccrualDate,
+      lastCalculatedAt: today,
+    };
+  }
+
+  async addDocument(
+    employeeId: string,
+    payload: { name: string; url: string; category?: string },
+  ): Promise<EmployeeDocumentAttachment> {
+    const now = new Date();
+    const updated = await this.employeeModel
+      .findByIdAndUpdate(
+        employeeId,
+        {
+          $push: {
+            documents: {
+              name: payload.name.trim(),
+              url: payload.url,
+              category: payload.category?.trim(),
+              createdAt: now,
+              updatedAt: now,
+            },
+          },
+        },
+        { new: true, runValidators: true },
+      )
+      .exec();
+    if (!updated) throw new NotFoundException('Employee not found');
+    const attachment = (updated.documents || [])[
+      (updated.documents || []).length - 1
+    ];
+    if (!attachment) throw new BadRequestException('Unable to add document');
+    return attachment;
+  }
+
+  async removeDocument(employeeId: string, documentId: string): Promise<void> {
+    const result = await this.employeeModel
+      .updateOne(
+        { _id: employeeId },
+        { $pull: { documents: { _id: documentId } } },
+      )
+      .exec();
+    if (result.matchedCount === 0)
+      throw new NotFoundException('Employee not found');
+    if (result.modifiedCount === 0)
+      throw new NotFoundException('Document not found');
   }
 }

@@ -5,6 +5,26 @@ export type EmployeeDocument = HydratedDocument<Employee>;
 
 export type SalarySchedule = 'monthly' | 'biweekly' | 'weekly' | 'hourly';
 
+@Schema({ timestamps: true })
+export class EmployeeDocumentAttachment {
+  @Prop({ required: true, trim: true, maxlength: 200 })
+  name: string;
+
+  @Prop({ required: true })
+  url: string;
+
+  @Prop({ required: false, trim: true, maxlength: 100 })
+  category?: string;
+
+  createdAt?: Date;
+  updatedAt?: Date;
+  _id?: MongooseSchema.Types.ObjectId;
+}
+
+const EmployeeDocumentAttachmentSchema = SchemaFactory.createForClass(
+  EmployeeDocumentAttachment,
+);
+
 @Schema({ _id: false, timestamps: true })
 export class SalaryEntry {
   @Prop({ required: true, min: 0 })
@@ -48,6 +68,12 @@ export class Employee {
   @Prop({ required: true, unique: true, match: /^\d{9}$/ })
   documentId: string; // 9 digits
 
+  @Prop({ required: true, match: /^\d{8}$/ })
+  phone: string;
+
+  @Prop({ required: false, trim: true, lowercase: true })
+  email?: string;
+
   @Prop({ type: String, enum: ['active', 'inactive'], default: 'active' })
   status: 'active' | 'inactive';
 
@@ -56,6 +82,9 @@ export class Employee {
 
   @Prop({ type: [SalaryEntrySchema], default: [] })
   salaryHistory: SalaryEntry[];
+
+  @Prop({ type: [EmployeeDocumentAttachmentSchema], default: [] })
+  documents: EmployeeDocumentAttachment[];
 
   createdAt?: Date;
   updatedAt?: Date;

@@ -13,6 +13,7 @@ import { EmployeesService } from './employees.service';
 import { CreateEmployeeDto } from './dto/create-employee.dto';
 import { UpdateEmployeeDto } from './dto/update-employee.dto';
 import { AddSalaryDto } from './dto/add-salary.dto';
+import { AddDocumentDto } from './dto/add-document.dto';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
@@ -85,5 +86,26 @@ export class EmployeesController {
   @Roles('admin')
   addSalary(@Param('id') id: string, @Body() dto: AddSalaryDto) {
     return this.service.addSalary(id, dto);
+  }
+
+  @Get(':id/vacations')
+  @Roles('admin')
+  getVacationSummary(@Param('id') id: string) {
+    return this.service.getVacationSummary(id);
+  }
+
+  @Post(':id/documents')
+  @Roles('admin')
+  addDocument(@Param('id') id: string, @Body() dto: AddDocumentDto) {
+    return this.service.addDocument(id, dto);
+  }
+
+  @Delete(':id/documents/:documentId')
+  @Roles('admin')
+  removeDocument(
+    @Param('id') id: string,
+    @Param('documentId') documentId: string,
+  ) {
+    return this.service.removeDocument(id, documentId);
   }
 }
