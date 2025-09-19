@@ -16,10 +16,34 @@ async function bootstrap() {
     .split(',')
     .map((u) => u.trim())
     .filter(Boolean);
+
+  const isAllowedOrigin = (origin: string): boolean => {
+    if (!corsList.length) return true;
+    try {
+      const incoming = new URL(origin);
+      return corsList.some((whitelisted) => {
+        try {
+          const allowed = new URL(whitelisted);
+          return (
+            incoming.protocol === allowed.protocol &&
+            incoming.hostname === allowed.hostname
+          );
+        } catch {
+          return origin === whitelisted;
+        }
+      });
+    } catch {
+      return corsList.includes(origin);
+    }
+  };
+
   app.enableCors({
-    origin: (incoming, cb) =>
-      cb(null, !incoming || corsList.includes(incoming)),
-    methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
+    origin: (incoming, cb) => {
+      if (!incoming) return cb(null, true);
+      cb(null, isAllowedOrigin(incoming));
+    },
+    methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
+    allowedHeaders: ['Content-Type', 'Authorization'],
     credentials: true,
   });
 
