@@ -10,41 +10,9 @@ async function bootstrap() {
   // 1) create the app
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
 
-  // 2) CORS (driven by ENV, defaulting to no‐origins)
-  const config = app.get(ConfigService);
-  const corsList = (config.get<string>('CORS_ORIGINS') ?? '')
-    .split(',')
-    .map((u) => u.trim())
-    .filter(Boolean);
-
-  const isAllowedOrigin = (origin: string): boolean => {
-    if (!corsList.length) return true;
-    try {
-      const incoming = new URL(origin);
-      return corsList.some((whitelisted) => {
-        try {
-          const allowed = new URL(whitelisted);
-          return (
-            incoming.protocol === allowed.protocol &&
-            incoming.hostname === allowed.hostname
-          );
-        } catch {
-          return origin === whitelisted;
-        }
-      });
-    } catch {
-      return corsList.includes(origin);
-    }
-  };
-
+  // 2) CORS
   app.enableCors({
-    origin: (incoming, cb) => {
-      console.log('Origin requested:', incoming);
-      if (!incoming) return cb(null, true);
-      cb(null, isAllowedOrigin(incoming));
-    },
-    methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
-    allowedHeaders: ['Content-Type', 'Authorization'],
+    origin: true,
     credentials: true,
   });
 
