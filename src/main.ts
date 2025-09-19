@@ -39,6 +39,7 @@ async function bootstrap() {
 
   app.enableCors({
     origin: (incoming, cb) => {
+      console.log('Origin requested:', incoming);
       if (!incoming) return cb(null, true);
       cb(null, isAllowedOrigin(incoming));
     },
