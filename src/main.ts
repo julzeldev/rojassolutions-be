@@ -11,8 +11,20 @@ async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
 
   // 2) CORS
+  const allowedOrigins = [
+    'https://www.rojassolutions.net', // your frontend production domain
+    'http://localhost:3000', // for local development if needed
+    'http://localhost:5173', // for local development if needed
+  ];
+
   app.enableCors({
-    origin: true,
+    origin: (origin, callback) => {
+      if (!origin || allowedOrigins.includes(origin)) {
+        callback(null, true);
+      } else {
+        callback(new Error('Not allowed by CORS'));
+      }
+    },
     credentials: true,
   });
 
