@@ -265,7 +265,7 @@ export class AuthService {
     }
 
     this.logger.debug(
-      `Verifying TOTP setup for user ${userId}. Token: ${token}, Secret length: ${pending.secret.length}`,
+      `Verifying TOTP setup for user ${userId}. Secret length: ${pending.secret.length}`,
     );
 
     const auth = authenticator as unknown as {
