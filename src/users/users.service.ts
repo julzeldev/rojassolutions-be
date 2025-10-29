@@ -120,11 +120,9 @@ export class UsersService implements OnApplicationBootstrap {
     if (typeof update.mfaSecret !== 'undefined')
       payload.mfaSecret = update.mfaSecret;
     if (typeof update.mfaSecretEnc !== 'undefined')
-      payload.mfaSecretEnc = update.mfaSecretEnc as string | undefined;
+      payload.mfaSecretEnc = update.mfaSecretEnc;
     if (typeof update.mfaRecoveryCodes !== 'undefined')
-      payload.mfaRecoveryCodes = update.mfaRecoveryCodes as
-        | string[]
-        | undefined;
+      payload.mfaRecoveryCodes = update.mfaRecoveryCodes;
     if (typeof update.recoveryCodesShownOnce !== 'undefined')
       payload.recoveryCodesShownOnce = !!update.recoveryCodesShownOnce;
     if (update.password) {
