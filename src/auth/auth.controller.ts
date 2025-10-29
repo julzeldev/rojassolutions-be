@@ -136,8 +136,13 @@ export class AuthController {
       limit: 5,
       ttl: 60,
       getTracker: (req: any) => {
-        const userId = req.body?.userId || 'unknown';
-        const ip = this.getRequestIp(req) || 'unknown';
+        const userId =
+          (req as { body?: { userId?: string } }).body?.userId || 'unknown';
+        const ip =
+          (req as { ip?: string; socket?: { remoteAddress?: string } }).ip ||
+          (req as { socket?: { remoteAddress?: string } }).socket
+            ?.remoteAddress ||
+          'unknown';
         return `${userId}:${ip}`;
       },
     },
