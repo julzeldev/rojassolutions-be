@@ -280,7 +280,7 @@ export class AuthService {
 
     if (delta === null) {
       this.logger.warn(
-        `TOTP setup verification failed. Token: ${token} is invalid`,
+        `TOTP setup verification failed for user ${userId}: invalid token provided`,
       );
       throw new UnprocessableEntityException('Invalid TOTP code');
     }
