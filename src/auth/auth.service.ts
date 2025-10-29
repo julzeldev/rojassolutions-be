@@ -400,6 +400,7 @@ export class AuthService {
           throw new UnprocessableEntityException('Recovery code already used');
         }
         matchedIndex = i;
+        break;
       }
     }
 
