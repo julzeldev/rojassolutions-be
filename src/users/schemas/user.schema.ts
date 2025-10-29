@@ -20,6 +20,28 @@ export class User {
   @Prop()
   mfaSecret?: string;
 
+  @Prop()
+  mfaSecretEnc?: string;
+
+  @Prop({
+    type: [
+      {
+        codeHash: { type: String, required: true },
+        codeEnc: { type: String, required: true },
+        usedAt: { type: Date, default: null },
+      },
+    ],
+    default: [],
+  })
+  mfaRecoveryCodes?: {
+    codeHash: string;
+    codeEnc: string;
+    usedAt?: Date | null;
+  }[];
+
+  @Prop({ default: false })
+  recoveryCodesShownOnce?: boolean;
+
   @Prop({ type: [String], default: [] })
   refreshTokens?: string[];
 

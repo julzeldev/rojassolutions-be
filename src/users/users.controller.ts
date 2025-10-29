@@ -13,9 +13,10 @@ import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { RolesGuard } from '../auth/guards/roles.guard';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 
 @Controller('users')
-@UseGuards(RolesGuard)
+@UseGuards(JwtAuthGuard, RolesGuard)
 @Roles('admin')
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}
@@ -43,5 +44,17 @@ export class UsersController {
   @Delete(':id')
   remove(@Param('id') id: string) {
     return this.usersService.remove(id);
+  }
+
+  @Post(':id/reset-mfa')
+  async resetMfa(@Param('id') id: string) {
+    await this.usersService.update(id, {
+      mfaEnabled: false,
+      mfaSecret: undefined,
+      mfaSecretEnc: undefined,
+      mfaRecoveryCodes: undefined,
+      recoveryCodesShownOnce: false,
+    });
+    return { message: 'MFA has been reset for this user' };
   }
 }
