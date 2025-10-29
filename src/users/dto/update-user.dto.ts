@@ -18,8 +18,8 @@ export class MfaRecoveryCodeDto {
   codeEnc: string;
 
   @IsOptional()
-  @IsDate()
   @Type(() => Date)
+  @IsDate()
   usedAt?: Date | null;
 }
 
@@ -37,6 +37,7 @@ export class UpdateUserDto {
   role?: 'admin' | 'employee';
 
   @IsOptional()
+  @IsBoolean()
   mfaEnabled?: boolean;
 
   @IsOptional()
