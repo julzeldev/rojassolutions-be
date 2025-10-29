@@ -27,6 +27,7 @@ export class UpdateUserDto {
   mfaSecret?: string;
 
   @IsOptional()
+  @IsString()
   mfaSecretEnc?: string;
 
   @IsOptional()
