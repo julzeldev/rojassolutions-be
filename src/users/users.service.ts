@@ -122,7 +122,9 @@ export class UsersService implements OnApplicationBootstrap {
     if (typeof update.mfaSecretEnc !== 'undefined')
       payload.mfaSecretEnc = update.mfaSecretEnc as string | undefined;
     if (typeof update.mfaRecoveryCodes !== 'undefined')
-      payload.mfaRecoveryCodes = update.mfaRecoveryCodes as string[] | undefined;
+      payload.mfaRecoveryCodes = update.mfaRecoveryCodes as
+        | string[]
+        | undefined;
     if (typeof update.recoveryCodesShownOnce !== 'undefined')
       payload.recoveryCodesShownOnce = !!update.recoveryCodesShownOnce;
     if (update.password) {
