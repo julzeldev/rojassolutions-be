@@ -236,7 +236,8 @@ export class AuthService {
     const qrSvgDataUrl = `data:image/svg+xml;base64,${Buffer.from(svg).toString('base64')}`;
 
     // Get MFA setup expiration from config (in seconds), default to 600 (10 minutes)
-    const mfaSetupExpiresIn = Number(this.configService.get('MFA_SETUP_EXPIRES_IN')) || 600;
+    const mfaSetupExpiresIn =
+      Number(this.configService.get('MFA_SETUP_EXPIRES_IN')) || 600;
     const expiresAt = new Date(Date.now() + mfaSetupExpiresIn * 1000);
 
     await this.pendingMfaModel
@@ -355,9 +356,7 @@ export class AuthService {
 
     const delta = authLib.checkDelta(token, secret, { window: 1 });
     if (delta === null) {
-      this.logger.warn(
-        `Invalid TOTP attempt for user ${userId}.`,
-      );
+      this.logger.warn(`Invalid TOTP attempt for user ${userId}.`);
       throw new UnprocessableEntityException('Invalid TOTP code');
     }
 
