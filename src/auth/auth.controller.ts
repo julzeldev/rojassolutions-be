@@ -38,6 +38,13 @@ import { PreAuthGuard } from './guards/pre-auth.guard';
 export class AuthController {
   constructor(private authService: AuthService) {}
 
+  private getRequestIp(req: any): string {
+    const ip = (req as { ip?: string; socket?: { remoteAddress?: string } }).ip;
+    const fallbackIp = (req as { socket?: { remoteAddress?: string } }).socket
+      ?.remoteAddress;
+    return ip || fallbackIp || 'unknown';
+  }
+
   @UseGuards(LocalAuthGuard)
   @Throttle({ default: { limit: 5, ttl: 60 } })
   @ApiOperation({ summary: 'Authenticate with email and password' })
@@ -128,7 +135,16 @@ export class AuthController {
     default: {
       limit: 5,
       ttl: 60,
-      getTracker: (req: any) => `${req?.body?.userId || 'unknown'}:${req.ip}`,
+      getTracker: (req: any) => {
+        const request = req as {
+          ip?: string;
+          socket?: { remoteAddress?: string };
+          body?: { userId?: string };
+        };
+        const ip = request.ip;
+        const fallbackIp = request.socket?.remoteAddress;
+        return `${request.body?.userId || 'unknown'}:${ip || fallbackIp || 'unknown'}`;
+      },
     },
   })
   @ApiOperation({ summary: 'Complete MFA login with a TOTP code' })
@@ -149,14 +165,8 @@ export class AuthController {
   @ApiUnprocessableEntityResponse({ description: 'Invalid TOTP code' })
   @ApiTooManyRequestsResponse({ description: 'Too many attempts' })
   async verifyTotp(@Body() body: VerifyTotpLoginDto, @Request() req: any) {
-    const ip = (req as { ip?: string; socket?: { remoteAddress?: string } }).ip;
-    const fallbackIp = (req as { socket?: { remoteAddress?: string } }).socket
-      ?.remoteAddress;
-    return this.authService.verifyTotpLogin(
-      body.userId,
-      body.code,
-      ip || fallbackIp || 'unknown',
-    );
+    const ip = this.getRequestIp(req);
+    return this.authService.verifyTotpLogin(body.userId, body.code, ip);
   }
 
   @Post('mfa/recovery-login')
@@ -164,7 +174,16 @@ export class AuthController {
     default: {
       limit: 5,
       ttl: 600,
-      getTracker: (req: any) => `${req?.body?.email || 'unknown'}:${req.ip}`,
+      getTracker: (req: any) => {
+        const request = req as {
+          ip?: string;
+          socket?: { remoteAddress?: string };
+          body?: { email?: string };
+        };
+        const ip = request.ip;
+        const fallbackIp = request.socket?.remoteAddress;
+        return `${request.body?.email || 'unknown'}:${ip || fallbackIp || 'unknown'}`;
+      },
     },
   })
   @ApiOperation({ summary: 'Login using a recovery code' })
@@ -185,14 +204,8 @@ export class AuthController {
   @ApiUnprocessableEntityResponse({ description: 'Recovery code already used' })
   @ApiTooManyRequestsResponse({ description: 'Too many attempts' })
   async recoveryLogin(@Body() body: RecoveryLoginDto, @Request() req: any) {
-    const ip = (req as { ip?: string; socket?: { remoteAddress?: string } }).ip;
-    const fallbackIp = (req as { socket?: { remoteAddress?: string } }).socket
-      ?.remoteAddress;
-    return this.authService.recoveryLogin(
-      body.email,
-      body.recoveryCode,
-      ip || fallbackIp || 'unknown',
-    );
+    const ip = this.getRequestIp(req);
+    return this.authService.recoveryLogin(body.email, body.recoveryCode, ip);
   }
 
   @UseGuards(PreAuthGuard)
