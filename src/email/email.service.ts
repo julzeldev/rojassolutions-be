@@ -57,7 +57,7 @@ export class EmailService {
         text: options.text,
       });
       this.logger.log(
-        `Email sent successfully to ${this.maskEmail(options.to)}. ID: ${result.id || 'unknown'}`,
+        `Email sent successfully to ${this.maskEmail(options.to)}. ID: ${result.data?.id || 'unknown'}`,
       );
     } catch (err) {
       this.logger.error(`Failed to send email to ${this.maskEmail(options.to)}`, err);
