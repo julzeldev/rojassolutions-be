@@ -354,7 +354,7 @@ export class AuthService {
     const delta = authLib.checkDelta(token, secret, { window: 1 });
     if (delta === null) {
       this.logger.warn(
-        `Invalid TOTP attempt for user ${userId}. Token: ${token}, Secret length: ${secret.length}`,
+        `Invalid TOTP attempt for user ${userId}.`,
       );
       throw new UnprocessableEntityException('Invalid TOTP code');
     }
