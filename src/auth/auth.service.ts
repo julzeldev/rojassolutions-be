@@ -204,7 +204,7 @@ export class AuthService {
   }> {
     const codes: string[] = [];
     for (let i = 0; i < count; i += 1) {
-      codes.push(randomBytes(5).toString('hex'));
+      codes.push(randomBytes(8).toString('hex'));
     }
     const hashed = await Promise.all(codes.map((code) => hash(code)));
     const records = hashed.map((codeHash, idx) => ({
