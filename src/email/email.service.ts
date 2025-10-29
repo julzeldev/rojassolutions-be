@@ -30,6 +30,15 @@ export class EmailService {
     return this.mfaResetEnforced;
   }
 
+  private maskEmail(email: string): string {
+    const [localPart, domain] = email.split('@');
+    if (!domain) return '***';
+
+    const visibleChars = Math.min(2, Math.floor(localPart.length / 2));
+    const maskedLocal = localPart.substring(0, visibleChars) + '***';
+    return `${maskedLocal}@${domain}`;
+  }
+
   async send(options: SendEmailOptions): Promise<void> {
     if (!this.resend) {
       // dev fallback
@@ -48,7 +57,7 @@ export class EmailService {
         text: options.text,
       });
       this.logger.log(
-        `Email sent successfully to ${options.to}. ID: ${result.id || 'unknown'}`,
+        `Email sent successfully to ${this.maskEmail(options.to)}. ID: ${result.id || 'unknown'}`,
       );
     } catch (err) {
       this.logger.error('Resend send failed', err);
