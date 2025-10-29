@@ -536,7 +536,11 @@ export class AuthService {
     // Update password and clear MFA secret
     await this.usersService.update(String(record.userId), {
       password: newPassword,
-      mfaSecret: null, // Require user to re-setup MFA
+      mfaEnabled: false,
+      mfaSecret: undefined, // Clear legacy field
+      mfaSecretEnc: undefined,
+      mfaRecoveryCodes: undefined,
+      recoveryCodesShownOnce: false,
     });
 
     // cleanup
