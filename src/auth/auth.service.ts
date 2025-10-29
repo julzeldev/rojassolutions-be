@@ -393,12 +393,12 @@ export class AuthService {
     for (let i = 0; i < codes.length; i += 1) {
       const entry = codes[i];
       const match = await compare(recoveryCode, entry.codeHash);
-      if (match) {
+      if (match && matchedIndex === -1) {
         if (entry.usedAt) {
+          // Still throw immediately if the code is already used, to avoid reusing codes.
           throw new UnprocessableEntityException('Recovery code already used');
         }
         matchedIndex = i;
-        break;
       }
     }
 
