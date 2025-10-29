@@ -60,7 +60,7 @@ export class EmailService {
         `Email sent successfully to ${this.maskEmail(options.to)}. ID: ${result.id || 'unknown'}`,
       );
     } catch (err) {
-      this.logger.error('Resend send failed', err);
+      this.logger.error(`Failed to send email to ${this.maskEmail(options.to)}`, err);
       throw err; // Re-throw so calling code knows it failed
     }
   }
