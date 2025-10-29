@@ -1,10 +1,27 @@
 import {
+  IsArray,
   IsBoolean,
+  IsDate,
   IsEmail,
   IsEnum,
   IsOptional,
   IsString,
+  ValidateNested,
 } from 'class-validator';
+import { Type } from 'class-transformer';
+
+export class MfaRecoveryCodeDto {
+  @IsString()
+  codeHash: string;
+
+  @IsString()
+  codeEnc: string;
+
+  @IsOptional()
+  @IsDate()
+  @Type(() => Date)
+  usedAt?: Date | null;
+}
 
 export class UpdateUserDto {
   @IsOptional()
@@ -31,11 +48,10 @@ export class UpdateUserDto {
   mfaSecretEnc?: string;
 
   @IsOptional()
-  mfaRecoveryCodes?: {
-    codeHash: string;
-    codeEnc: string;
-    usedAt?: Date | null;
-  }[];
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => MfaRecoveryCodeDto)
+  mfaRecoveryCodes?: MfaRecoveryCodeDto[];
 
   @IsOptional()
   @IsBoolean()
