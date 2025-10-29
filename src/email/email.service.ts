@@ -40,15 +40,19 @@ export class EmailService {
       return;
     }
     try {
-      await this.resend.emails.send({
+      const result = await this.resend.emails.send({
         from: this.from,
         to: options.to,
         subject: options.subject,
         html: options.html,
         text: options.text,
       });
+      this.logger.log(
+        `Email sent successfully to ${options.to}. ID: ${result.id || 'unknown'}`,
+      );
     } catch (err) {
-      this.logger.error('Resend send failed', err as Error);
+      this.logger.error('Resend send failed', err);
+      throw err; // Re-throw so calling code knows it failed
     }
   }
 }

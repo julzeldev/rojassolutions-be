@@ -44,4 +44,16 @@ export class UsersController {
   remove(@Param('id') id: string) {
     return this.usersService.remove(id);
   }
+
+  @Post(':id/reset-mfa')
+  async resetMfa(@Param('id') id: string) {
+    await this.usersService.update(id, {
+      mfaEnabled: false,
+      mfaSecret: undefined,
+      mfaSecretEnc: undefined,
+      mfaRecoveryCodes: undefined,
+      recoveryCodesShownOnce: false,
+    });
+    return { message: 'MFA has been reset for this user' };
+  }
 }

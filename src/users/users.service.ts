@@ -56,10 +56,6 @@ export class UsersService implements OnApplicationBootstrap {
         mfaEnabled: true,
         mfaSecret,
       });
-
-      // Log to console as requested (temporary password)
-
-      console.log(`Seeded admin ${email} temporary password: ${tempPassword}`);
     }
   }
 
@@ -109,13 +105,26 @@ export class UsersService implements OnApplicationBootstrap {
       .exec();
   }
 
+  async clearMfaSecret(userId: string): Promise<void> {
+    await this.userModel
+      .findByIdAndUpdate(userId, { $unset: { mfaSecret: '' } })
+      .exec();
+  }
+
   async update(id: string, update: UpdateUserDto): Promise<User> {
     const payload: UpdateQuery<UserDocument> = {};
     if (update.email) payload.email = update.email;
     if (update.role) payload.role = update.role;
     if (typeof update.mfaEnabled !== 'undefined')
       payload.mfaEnabled = !!update.mfaEnabled;
-    if (update.mfaSecret) payload.mfaSecret = update.mfaSecret;
+    if (typeof update.mfaSecret !== 'undefined')
+      payload.mfaSecret = update.mfaSecret as unknown as string | undefined;
+    if (typeof update.mfaSecretEnc !== 'undefined')
+      payload.mfaSecretEnc = update.mfaSecretEnc as string | undefined;
+    if (typeof update.mfaRecoveryCodes !== 'undefined')
+      payload.mfaRecoveryCodes = update.mfaRecoveryCodes as unknown as any;
+    if (typeof update.recoveryCodesShownOnce !== 'undefined')
+      payload.recoveryCodesShownOnce = !!update.recoveryCodesShownOnce;
     if (update.password) {
       payload.passwordHash = await hash(update.password);
     }
