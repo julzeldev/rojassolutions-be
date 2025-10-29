@@ -1,6 +1,7 @@
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from '../app.module';
 import { UsersService } from '../users/users.service';
+import { User } from '../users/schemas/user.schema';
 
 /**
  * Script to re-encrypt MFA secrets for users who have plain mfaSecret
@@ -11,25 +12,18 @@ async function fixMfaSecrets() {
   const usersService = app.get(UsersService);
 
   try {
-    const users = await usersService.findAll();
+    const users: User[] = await usersService.findAll();
     let fixed = 0;
 
     for (const user of users) {
-      const userDoc = user as {
-        mfaSecret?: string;
-        mfaSecretEnc?: string;
-        mfaEnabled?: boolean;
-        email: string;
-      };
-
       // Check if user has plain mfaSecret but no mfaSecretEnc
-      if (userDoc.mfaSecret && !userDoc.mfaSecretEnc && userDoc.mfaEnabled) {
-        console.log(`Migrating MFA secret for user: ${userDoc.email}`);
+      if (user.mfaSecret && !user.mfaSecretEnc && user.mfaEnabled) {
+        console.log(`Migrating MFA secret for user: ${user.email}`);
 
         // The AuthService has the encryption method, but it's private
         // So we'll just clear the MFA for this user and they'll need to re-setup
         console.log(
-          `  ⚠️  User ${userDoc.email} has plain mfaSecret - needs to re-setup MFA`,
+          `  ⚠️  User ${user.email} has plain mfaSecret - needs to re-setup MFA`,
         );
         console.log(`  You can either:`);
         console.log(
@@ -37,8 +31,8 @@ async function fixMfaSecrets() {
         );
         console.log(`    2. Manually re-encrypt the secret`);
         fixed++;
-      } else if (userDoc.mfaSecretEnc && userDoc.mfaEnabled) {
-        console.log(`✓ User ${userDoc.email} has encrypted MFA secret`);
+      } else if (user.mfaSecretEnc && user.mfaEnabled) {
+        console.log(`✓ User ${user.email} has encrypted MFA secret`);
       }
     }
 
