@@ -235,7 +235,9 @@ export class AuthService {
     const svg = await qrLib.toString(otpauthUrl, { type: 'svg' });
     const qrSvgDataUrl = `data:image/svg+xml;base64,${Buffer.from(svg).toString('base64')}`;
 
-    const expiresAt = new Date(Date.now() + 1000 * 60 * 10);
+    // Get MFA setup expiration from config (in seconds), default to 600 (10 minutes)
+    const mfaSetupExpiresIn = Number(this.configService.get('MFA_SETUP_EXPIRES_IN')) || 600;
+    const expiresAt = new Date(Date.now() + mfaSetupExpiresIn * 1000);
 
     await this.pendingMfaModel
       .findOneAndUpdate(
