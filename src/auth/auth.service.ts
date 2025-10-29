@@ -527,13 +527,30 @@ export class AuthService {
 
     // Allow password reset regardless of MFA status
     // This is critical for account recovery when users lose MFA device
+    // SECURITY: This allows attackers who compromise email to bypass MFA.
+    // Mitigations:
+    //   - Notify user of password reset via email.
+    //   - Require MFA re-setup after password reset by clearing MFA secret.
+
+    // Update password and clear MFA secret
     await this.usersService.update(String(record.userId), {
       password: newPassword,
+      mfaSecret: null, // Require user to re-setup MFA
     });
 
     // cleanup
     await this.passwordResetModel.deleteOne({ _id: record._id }).exec();
 
+    // Fetch user email for notification
+    const user = await this.usersService.findOne(String(record.userId));
+    if (user && user.email) {
+      await this.emailService.send({
+        to: user.email,
+        subject: 'Your password was reset',
+        text: `Your password was successfully reset. If you did not perform this action, please contact support immediately.`,
+        html: `<p>Your password was successfully reset.</p><p>If you did not perform this action, please contact support immediately.</p>`,
+      });
+    }
     this.logger.log(
       `Password reset successful for user ${String(record.userId)}`,
     );
