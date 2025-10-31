@@ -1,13 +1,13 @@
 // src/utils/date.ts
-// Utilities for parsing and formatting date-only strings (yyyy/mm/dd)
+// Utilities for parsing and formatting date-only strings (yyyy-mm-dd)
 
-export type YyyyMmDd = `${number}/${number}/${number}`;
+export type YyyyMmDd = `${number}-${number}-${number}`;
 
-const DATE_RE = /^(\d{4})\/(\d{2})\/(\d{2})$/;
+const DATE_RE = /^(\d{4})-(\d{2})-(\d{2})$/;
 
 export function parseYyyyMmDdToUtcDate(input: string): Date {
   const m = DATE_RE.exec(input);
-  if (!m) throw new Error('Invalid date format, expected yyyy/mm/dd');
+  if (!m) throw new Error('Invalid date format, expected yyyy-mm-dd');
   const year = Number(m[1]);
   const month = Number(m[2]);
   const day = Number(m[3]);
@@ -29,7 +29,7 @@ export function formatDateToYyyyMmDd(date: Date): YyyyMmDd {
   const y = date.getUTCFullYear();
   const m = (date.getUTCMonth() + 1).toString().padStart(2, '0');
   const d = date.getUTCDate().toString().padStart(2, '0');
-  return `${y}/${m}/${d}` as YyyyMmDd;
+  return `${y}-${m}-${d}` as YyyyMmDd;
 }
 
 export function oneDayBeforeUtc(date: Date): Date {

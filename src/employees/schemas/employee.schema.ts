@@ -51,32 +51,110 @@ export class SalaryEntry {
 
 const SalaryEntrySchema = SchemaFactory.createForClass(SalaryEntry);
 
+@Schema({ _id: false })
+export class Address {
+  @Prop({ required: false, trim: true, maxlength: 100 })
+  province?: string;
+
+  @Prop({ required: false, trim: true, maxlength: 100 })
+  canton?: string;
+
+  @Prop({ required: false, trim: true, maxlength: 100 })
+  district?: string;
+
+  @Prop({ required: false, trim: true, maxlength: 500 })
+  exactAddress?: string;
+}
+
+const AddressSchema = SchemaFactory.createForClass(Address);
+
+@Schema({ _id: false })
+export class EmergencyContact {
+  @Prop({ required: false, trim: true, maxlength: 200 })
+  name?: string;
+
+  @Prop({ required: false, match: /^\d{8}$/ })
+  phone?: string;
+
+  @Prop({ required: false, trim: true, maxlength: 100 })
+  relationship?: string;
+}
+
+const EmergencyContactSchema = SchemaFactory.createForClass(EmergencyContact);
+
 @Schema({ timestamps: true })
 export class Employee {
-  @Prop({ required: true, trim: true, maxlength: 100 })
-  firstName: string;
-
-  @Prop({ required: true, trim: true, maxlength: 100 })
-  lastName: string;
-
-  @Prop({ type: Date, required: true })
-  dob: Date;
-
-  @Prop({ type: Date, required: true })
-  dateOfHire: Date;
-
+  // Identification
   @Prop({ required: true, unique: true, match: /^\d{9}$/ })
-  documentId: string; // 9 digits
+  documentId: string; // Identificación - 9 digits
 
+  // Name fields
+  @Prop({ required: true, trim: true, maxlength: 100 })
+  firstName: string; // Nombre
+
+  @Prop({ required: true, trim: true, maxlength: 100 })
+  firstLastName: string; // Apellido 1
+
+  @Prop({ required: false, trim: true, maxlength: 100 })
+  secondLastName?: string; // Apellido 2
+
+  // Personal Information
+  @Prop({ required: false, trim: true, maxlength: 100 })
+  nationality?: string; // Nacionalidad
+
+  @Prop({ type: Date, required: true })
+  dob: Date; // Fecha de nacimiento
+
+  @Prop({
+    type: String,
+    enum: ['single', 'married', 'divorced', 'widowed', 'free_union'],
+    required: false,
+  })
+  maritalStatus?: string; // Estado Civil
+
+  @Prop({ required: false, trim: true, maxlength: 100 })
+  education?: string; // Escolaridad
+
+  // Contact Information
   @Prop({ required: true, match: /^\d{8}$/ })
-  phone: string;
+  phone: string; // Teléfono - 8 digits
 
   @Prop({ required: false, trim: true, lowercase: true })
-  email?: string;
+  email?: string; // Correo Electrónico
+
+  @Prop({ type: AddressSchema, required: false })
+  address?: Address; // Domicilio (Provincia, Cantón, Distrito, Dirección Exacta)
+
+  // Emergency Contact
+  @Prop({ type: EmergencyContactSchema, required: false })
+  emergencyContact?: EmergencyContact; // Contacto de Emergencia
+
+  // Work Information
+  @Prop({ type: Date, required: true })
+  dateOfHire: Date; // Ingreso a la empresa
+
+  @Prop({ required: false, trim: true, maxlength: 200 })
+  position?: string; // Puesto
 
   @Prop({ type: String, enum: ['active', 'inactive'], default: 'active' })
   status: 'active' | 'inactive';
 
+  // Uniform/Clothing
+  @Prop({ required: false, trim: true, maxlength: 10 })
+  shirtSize?: string; // Talla Camisa
+
+  @Prop({ required: false, trim: true, maxlength: 10 })
+  shoeSize?: string; // Número de Calzado
+
+  // Financial Information
+  @Prop({ required: false, trim: true, maxlength: 100 })
+  bankAccount?: string; // Número de cuenta
+
+  // Additional Information
+  @Prop({ required: false, trim: true, maxlength: 1000 })
+  notes?: string; // Observaciones
+
+  // System fields
   @Prop({ type: MongooseSchema.Types.ObjectId, ref: 'User', required: false })
   userId?: MongooseSchema.Types.ObjectId;
 
@@ -91,4 +169,5 @@ export class Employee {
 }
 
 export const EmployeeSchema = SchemaFactory.createForClass(Employee);
-EmployeeSchema.index({ lastName: 1 });
+EmployeeSchema.index({ firstLastName: 1 });
+EmployeeSchema.index({ documentId: 1 });

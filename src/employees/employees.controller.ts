@@ -10,13 +10,20 @@ import {
   Req,
   UseGuards,
   UnauthorizedException,
+  UseInterceptors,
+  UploadedFile,
+  BadRequestException,
+  Header,
+  Res,
 } from '@nestjs/common';
-import { Request } from 'express';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { Request, Response } from 'express';
 import { EmployeesService } from './employees.service';
 import { CreateEmployeeDto } from './dto/create-employee.dto';
 import { UpdateEmployeeDto } from './dto/update-employee.dto';
 import { AddSalaryDto } from './dto/add-salary.dto';
 import { AddDocumentDto } from './dto/add-document.dto';
+import { SeedEmployeesDto } from './dto/seed-employees.dto';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
@@ -46,6 +53,12 @@ export class EmployeesController {
       limit: limit ? parseInt(limit, 10) : undefined,
       offset: offset ? parseInt(offset, 10) : undefined,
     });
+  }
+
+  @Get('statistics')
+  @Roles('admin')
+  getStatistics() {
+    return this.service.getEmployeeStatistics();
   }
 
   @Get(':id')
@@ -92,7 +105,7 @@ export class EmployeesController {
     @Body() dto: AddSalaryDto,
     @Req() req: Request,
   ) {
-    const adminId = (req.user as { sub?: string } | undefined)?.sub;
+    const adminId = (req.user as { userId?: string } | undefined)?.userId;
     if (!adminId) {
       throw new UnauthorizedException('Sesión inválida');
     }
@@ -118,5 +131,78 @@ export class EmployeesController {
     @Param('documentId') documentId: string,
   ) {
     return this.service.removeDocument(id, documentId);
+  }
+
+  @Get('superadmin/dump')
+  @Roles('admin')
+  dumpEmployees() {
+    return this.service.dumpAllEmployees();
+  }
+
+  @Post('superadmin/seed')
+  @Roles('admin')
+  seedEmployees(@Body() dto: SeedEmployeesDto) {
+    return this.service.seedDemoEmployees(dto.clearExisting ?? false);
+  }
+
+  @Post('import')
+  @Roles('admin')
+  @UseInterceptors(FileInterceptor('file'))
+  importEmployees(
+    @UploadedFile() file: any,
+    @Body('strategy') strategy: 'skip' | 'update' | 'replace',
+  ) {
+    if (!file) {
+      throw new BadRequestException('No se proporcionó ningún archivo');
+    }
+
+    const allowedMimeTypes = [
+      'text/csv',
+      'application/vnd.ms-excel',
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    ];
+
+    if (!allowedMimeTypes.includes(file.mimetype)) {
+      throw new BadRequestException(
+        'Formato de archivo no soportado. Use CSV o Excel (.xlsx)',
+      );
+    }
+
+    return this.service.importEmployeesFromFile(
+      file.buffer,
+      file.mimetype,
+      strategy || 'skip',
+    );
+  }
+
+  @Get('export')
+  @Roles('admin')
+  @Header('Content-Type', 'text/csv')
+  @Header('Content-Disposition', 'attachment; filename="empleados.csv"')
+  async exportEmployees(
+    @Res() res: Response,
+    @Query('format') format?: string,
+  ) {
+    const exportFormat = format || 'csv';
+    const result = await this.service.exportEmployeesToFile(exportFormat);
+
+    if (exportFormat === 'xlsx') {
+      res.setHeader(
+        'Content-Type',
+        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      );
+      res.setHeader(
+        'Content-Disposition',
+        'attachment; filename="empleados.xlsx"',
+      );
+    } else {
+      res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+      res.setHeader(
+        'Content-Disposition',
+        'attachment; filename="empleados.csv"',
+      );
+    }
+
+    res.send(result);
   }
 }
