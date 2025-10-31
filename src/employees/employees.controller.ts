@@ -149,7 +149,7 @@ export class EmployeesController {
   @Roles('admin')
   @UseInterceptors(FileInterceptor('file'))
   importEmployees(
-    @UploadedFile() file: any,
+    @UploadedFile() file: Express.Multer.File,
     @Body('strategy') strategy: 'skip' | 'update' | 'replace',
   ) {
     if (!file) {
