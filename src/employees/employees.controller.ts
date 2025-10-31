@@ -61,6 +61,35 @@ export class EmployeesController {
     return this.service.getEmployeeStatistics();
   }
 
+  @Get('export')
+  @Roles('admin')
+  async exportEmployees(
+    @Res() res: Response,
+    @Query('format') format?: string,
+  ) {
+    const exportFormat = format || 'csv';
+    const result = await this.service.exportEmployeesToFile(exportFormat);
+
+    if (exportFormat === 'xlsx') {
+      res.setHeader(
+        'Content-Type',
+        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      );
+      res.setHeader(
+        'Content-Disposition',
+        'attachment; filename="empleados.xlsx"',
+      );
+    } else {
+      res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+      res.setHeader(
+        'Content-Disposition',
+        'attachment; filename="empleados.csv"',
+      );
+    }
+
+    res.send(result);
+  }
+
   @Get(':id')
   @Roles('admin')
   findOne(@Param('id') id: string) {
@@ -173,34 +202,5 @@ export class EmployeesController {
       file.mimetype,
       strategy || 'skip',
     );
-  }
-
-  @Get('export')
-  @Roles('admin')
-  async exportEmployees(
-    @Res() res: Response,
-    @Query('format') format?: string,
-  ) {
-    const exportFormat = format || 'csv';
-    const result = await this.service.exportEmployeesToFile(exportFormat);
-
-    if (exportFormat === 'xlsx') {
-      res.setHeader(
-        'Content-Type',
-        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-      );
-      res.setHeader(
-        'Content-Disposition',
-        'attachment; filename="empleados.xlsx"',
-      );
-    } else {
-      res.setHeader('Content-Type', 'text/csv; charset=utf-8');
-      res.setHeader(
-        'Content-Disposition',
-        'attachment; filename="empleados.csv"',
-      );
-    }
-
-    res.send(result);
   }
 }
