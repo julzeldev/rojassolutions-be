@@ -177,8 +177,6 @@ export class EmployeesController {
 
   @Get('export')
   @Roles('admin')
-  @Header('Content-Type', 'text/csv')
-  @Header('Content-Disposition', 'attachment; filename="empleados.csv"')
   async exportEmployees(
     @Res() res: Response,
     @Query('format') format?: string,
