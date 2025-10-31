@@ -32,11 +32,11 @@ export class AddSalaryDto {
   schedule?: 'monthly' | 'biweekly' | 'weekly' | 'hourly';
 
   @ApiProperty({
-    example: '2025/01/01',
-    description: 'Start date (yyyy/mm/dd) for this salary to become effective',
+    example: '2025-01-01',
+    description: 'Start date (yyyy-mm-dd) for this salary to become effective',
   })
   @IsString()
-  @Matches(/^\d{4}\/\d{2}\/\d{2}$/)
+  @Matches(/^\d{4}-\d{2}-\d{2}$/)
   effectiveFrom: string;
 
   @ApiProperty({ required: false, example: 'Initial salary set' })
