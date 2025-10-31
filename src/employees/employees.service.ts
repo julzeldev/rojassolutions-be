@@ -1106,7 +1106,7 @@ export class EmployeesService {
           .exec();
 
         if (existing) {
-          if (strategy === 'skip' || strategy === 'replace') {
+          if (strategy === 'skip') {
             skipped++;
             continue;
           } else if (strategy === 'update') {
