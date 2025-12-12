@@ -8,6 +8,7 @@ import {
   Length,
   Matches,
   ValidateNested,
+  IsMongoId,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 
@@ -194,6 +195,15 @@ export class CreateEmployeeDto {
   @IsOptional()
   @IsIn(['active', 'inactive'])
   status?: 'active' | 'inactive';
+
+  // Subsidiary Assignment
+  @ApiProperty({
+    required: false,
+    description: 'ID de la sucursal asignada',
+  })
+  @IsOptional()
+  @IsMongoId()
+  subsidiaryId?: string;
 
   // Uniform/Clothing
   @ApiProperty({ required: false, example: 'M', description: 'Talla Camisa' })

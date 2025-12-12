@@ -139,6 +139,10 @@ export class Employee {
   @Prop({ type: String, enum: ['active', 'inactive'], default: 'active' })
   status: 'active' | 'inactive';
 
+  // Subsidiary Assignment
+  @Prop({ type: MongooseSchema.Types.ObjectId, ref: 'Subsidiary', required: false })
+  subsidiaryId?: MongooseSchema.Types.ObjectId;
+
   // Uniform/Clothing
   @Prop({ required: false, trim: true, maxlength: 10 })
   shirtSize?: string; // Talla Camisa

@@ -4,6 +4,7 @@ import { EmployeesService } from './employees.service';
 import { EmployeesController } from './employees.controller';
 import { Employee, EmployeeSchema } from './schemas/employee.schema';
 import { UsersModule } from '../users/users.module';
+import { SubsidiariesModule } from '../subsidiaries/subsidiaries.module';
 
 @Module({
   imports: [
@@ -11,6 +12,7 @@ import { UsersModule } from '../users/users.module';
       { name: Employee.name, schema: EmployeeSchema },
     ]),
     UsersModule,
+    SubsidiariesModule,
   ],
   controllers: [EmployeesController],
   providers: [EmployeesService],

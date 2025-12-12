@@ -7,7 +7,7 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { FilterQuery, Model } from 'mongoose';
+import { FilterQuery, Model, Types } from 'mongoose';
 import * as XLSX from 'xlsx';
 import * as Papa from 'papaparse';
 import {
@@ -21,12 +21,14 @@ import { UpdateEmployeeDto } from './dto/update-employee.dto';
 import { AddSalaryDto } from './dto/add-salary.dto';
 import { oneDayBeforeUtc, parseYyyyMmDdToUtcDate } from '../utils/date';
 import { UsersService } from '../users/users.service';
+import { SubsidiariesService } from '../subsidiaries/subsidiaries.service';
 
 @Injectable()
 export class EmployeesService {
   constructor(
     @InjectModel(Employee.name) private employeeModel: Model<EmployeeDocument>,
     private readonly usersService: UsersService,
+    private readonly subsidiariesService: SubsidiariesService,
   ) {}
 
   private parseAndValidateDates(dobStr: string, hireStr: string) {
@@ -83,6 +85,11 @@ export class EmployeesService {
         throw new BadRequestException('phone must be a string');
       }
 
+      // Validate subsidiary if provided
+      if (dto.subsidiaryId) {
+        await this.subsidiariesService.validateSubsidiaryExists(dto.subsidiaryId);
+      }
+
       const created = await this.employeeModel.create({
         documentId: dto.documentId,
         firstName: dto.firstName.trim(),
@@ -99,6 +106,7 @@ export class EmployeesService {
         dateOfHire,
         position: dto.position?.trim(),
         status: dto.status ?? 'active',
+        subsidiaryId: dto.subsidiaryId,
         shirtSize: dto.shirtSize?.trim(),
         shoeSize: dto.shoeSize?.trim(),
         bankAccount: dto.bankAccount?.trim(),
@@ -140,6 +148,7 @@ export class EmployeesService {
     const [items, total] = await Promise.all([
       this.employeeModel
         .find(filter)
+        .populate('subsidiaryId', 'name code address status')
         .sort({ firstLastName: 1, firstName: 1 })
         .skip(offset)
         .limit(limit)
@@ -150,7 +159,10 @@ export class EmployeesService {
   }
 
   async findOne(id: string): Promise<EmployeeDocument> {
-    const emp = await this.employeeModel.findById(id).exec();
+    const emp = await this.employeeModel
+      .findById(id)
+      .populate('subsidiaryId', 'name code address status')
+      .exec();
     if (!emp) throw new NotFoundException('Employee not found');
     return emp;
   }
@@ -207,9 +219,20 @@ export class EmployeesService {
 
     if (dto.status) update.status = dto.status;
 
+    // Validate subsidiary if provided
+    if (dto.subsidiaryId !== undefined) {
+      if (dto.subsidiaryId) {
+        await this.subsidiariesService.validateSubsidiaryExists(dto.subsidiaryId);
+        (update as any).subsidiaryId = new Types.ObjectId(dto.subsidiaryId);
+      } else {
+        (update as any).subsidiaryId = null;
+      }
+    }
+
     try {
       const updated = await this.employeeModel
         .findByIdAndUpdate(id, update, { new: true })
+        .populate('subsidiaryId', 'name code address status')
         .exec();
       if (!updated) throw new NotFoundException('Employee not found');
       return updated;
